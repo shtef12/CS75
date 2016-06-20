@@ -1,0 +1,136 @@
+<menu>
+    <category name = "Pizza">
+        <item>
+            <name>Tomato &amp; Cheese</name>
+            <price>
+                <small>5.50</small>
+                <large>9.75</large>
+            </price>
+        </item>
+        <item>
+            <name>Onions</name>
+            <price>
+                <small>6.85</small>
+                <large>10.85</large>
+            </price>
+        </item>
+        <item>
+            <name>Pepperoni</name>
+            <price>
+                <small>6.85</small>
+                <large>10.85</large>
+            </price>
+        </item>
+        <item>
+            <name>Sausage</name>
+            <price>
+                <small>6.85</small>
+                <large>10.85</large>
+            </price>
+        </item>
+        <item>
+            <name>Grilled Chicken</name>
+            <price>
+                <small>7.95</small>
+                <large>11.80</large>
+            </price>
+        </item>
+    </category>
+    <category name="Salad">
+        <item>
+            <name>Garden</name>
+            <price>
+                <small>3.50</small>
+                <large>4.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Greek</name>
+            <price>
+                <small>4.50</small>
+                <large>5.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Antipasto</name>
+            <price>
+                <small>4.50</small>
+                <large>5.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Chef</name>
+            <price>
+                <small>4.50</small>
+                <large>5.50</large>
+            </price>     
+        </item>
+    </category>
+    <category name="Specials">
+        <item>
+            <name>Chicken Wing Dinner</name>
+            <price>
+                <small>7.50</small>
+                <large>7.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Gyro Plate</name>
+            <price>
+                <small>7.50</small>
+                <large>7.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Chicken Finger Plate</name>
+            <price>
+                <small>7.50</small>
+                <large>7.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Double-Cheeseburger Plate</name>
+            <price>
+                <small>5.75</small>
+                <large>5.75</large>
+            </price>     
+        </item>
+    </category>
+    <category name="Grinders">
+        <item>
+            <name>Meatless</name>
+            <price>
+                <small>4.50</small>
+                <large>4.95</large>
+            </price>     
+        </item>
+        <item>
+            <name>Hamburger</name>
+            <price>
+                <small>4.50</small>
+                <large>4.95</large>
+            </price>     
+        </item>
+        <item>
+            <name>Italian</name>
+            <price>
+                <small>4.75</small>
+                <large>5.75</large>
+            </price>     
+        </item>
+        <item>
+            <name>Chicken Wing Dinner</name>
+            <price>
+                <small>7.50</small>
+                <large>7.50</large>
+            </price>     
+        </item>
+        <item>
+            <name>Roast Beef</name>
+            <price>
+                <small>4.95</small>
+                <large>5.95</large>
+            </price>     
+        </item>
+    </category>
+</menu>
