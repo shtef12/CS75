@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html>
+    <head><title>Simple Map</title>
+    <meta name="viewport" content="initial-scale=1.0">
+    <meta charset="utf-8">
+    <script type="text/javascript" src="mapFunctions.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCU_-1neyo36PdsF7I0COzaHjQ468xgmb0&callback=initMap"
+       async defer></script>
+    <style>
+     html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+        #map{
+            height: 50%;
+            width: 100%
+        }
+    </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div id="checkboxes" style="width: 200px; float: left;">
+            <form>
+                Show routes<input type="checkbox" onclick= "showRoutes(this)">
+                Show stations<input type="checkbox" onclick= "showStations(this)">
+            </form>
+        </div>
+        <div id="routeChecks" style="margin-left: 25px;">
+            <form>
+                Red Route<input type="checkbox" onclick="showRouteColor(this,'#ff0000')">
+                Yellow Route<input type="checkbox" onclick="showRouteColor(this,'#ffff33')">
+                Blue Route<input type="checkbox" onclick="showRouteColor(this,'#0099cc')">
+                Green Route<input type="checkbox" onclick="showRouteColor(this,'#339933')">
+                Orange Route<input type="checkbox" onclick="showRouteColor(this,'#ff9933')">
+                Grey Route<input type="checkbox" onclick="showRouteColor(this,'#d5cfa3')">
+            </form>
+        </div>
+            <script>
+
+                var map;
+                var coords = new google.maps.LatLng(37.7749,-122.4194);  //coords for San Francisco
+                var stationMarkers = []; //array to hold the markers of all the stations
+                var stationInfo = [];    //array holding information on all stations
+                var routeInfo = [];      //array holding info on all routes
+                var routeLines = [];     //array holding the polyLines of the routes
+                
+                function initMap(){
+                    map = new google.maps.Map(document.getElementById('map'),{
+                        center: {lat: 37.7749, lng: -122.4194},
+                        zoom: 8
+                    });
+                    initialize();
+                } 
+                
+                /*Sets up data for later use*/
+                function initialize(){
+                    //load station doc and route doc
+                    loadDoc("http://api.bart.gov/api/stn.aspx?cmd=stns&key=QL4I-5T5E-86MT-DWE9",addStationInfo);
+                    loadDoc("http://api.bart.gov/api/route.aspx?cmd=routes&key=QL4I-5T5E-86MT-DWE9",addRouteInfo);
+                }
+               
+               /*Handler for checkbox to show all stations*/
+               function showStations(checkbox){
+                  if(checkbox.checked == true){
+                      var xhttp = loadDoc("http://api.bart.gov/api/stn.aspx?cmd=stns&key=QL4I-5T5E-86MT-DWE9",drawStations);
+                 }if(checkbox.checked == false){
+                      removeMarkers(stationMarkers);
+                 }
+              }  
+              
+              /*Draws all the stations on the map*/
+              function drawStations(xhttp){
+                 if(stationMarkers == undefined || stationMarkers.length == 0){
+                    stationMarkers = new Array();
+                    var xmlDoc = xhttp.responseXML;
+                    var names = xmlDoc.getElementsByTagName("name");
+                    var lats = xmlDoc.getElementsByTagName("gtfs_latitude");
+                    var lngs = xmlDoc.getElementsByTagName("gtfs_longitude");
+
+                    for(i = 0; i < names.length; i++){
+                        //create a marker and add to map
+                        var name = names[i].textContent;
+                        var lat = lats[i].textContent;
+                        var lng = lngs[i].textContent;
+                        var latLng = new google.maps.LatLng(lat,lng);
+                        var testMark = new google.maps.Marker({
+                            position: latLng,
+                            map: map,
+                            title: name
+                        });
+                        var marker = {title: name, marker: testMark};
+                        stationMarkers.push(marker);
+                        testMark.addListener('click', function(n,marker) {
+                            return function() { addStationWindow(n,marker); };
+                            }(name,testMark));   
+                    }
+                 }else
+                    showMarkers(stationMarkers);   
+              }
+              
+              /*Adds info about stations into the station array*/
+              function addStationInfo(xhttp){
+                 var xmlDoc = xhttp.responseXML;
+                 var names = xmlDoc.getElementsByTagName("name");
+                 var abbrs = xmlDoc.getElementsByTagName("abbr");
+                 var lats = xmlDoc.getElementsByTagName("gtfs_latitude");
+                 var lngs = xmlDoc.getElementsByTagName("gtfs_longitude");
+                 
+                 stationInfo = new Array();
+                 
+                 for(i=0; i < names.length; i++){
+                    var station = new Array();
+                    station["name"] = names[i].textContent;
+                    station["abbr"] = abbrs[i].textContent;
+                    station["lat"] = lats[i].textContent;
+                    station["long"] = lngs[i].textContent;
+                    stationInfo.push(station);
+                 }
+              }
+              
+              /*Add info about routes into route array*/
+              function addRouteInfo(xhttp){
+                var xmlDoc = xhttp.responseXML;
+                routeInfo = new Array();
+                var names = xmlDoc.getElementsByTagName("name");
+                var abbrs = xmlDoc.getElementsByTagName("abbr");
+                var ids = xmlDoc.getElementsByTagName("routeID");
+                var nums = xmlDoc.getElementsByTagName("number");
+                var colors = xmlDoc.getElementsByTagName("color");
+                
+                for(i = 0; i < names.length; i++){
+                    var route = new Array();
+                    route["name"] = names[i].textContent;
+                    route["abbr"] = abbrs[i].textContent;
+                    route["id"] = ids[i].textContent;
+                    route["number"] = nums[i].textContent;
+                    route["color"] = colors[i].textContent;
+                    route["stations"] = new Array();
+                    
+                    //var url = "http://api.bart.gov/api/route.aspx?cmd=routeinfo&route="+nums[i].textContent+"&key=QL4I-5T5E-86MT-DWE9";
+
+                    routeInfo.push(route);
+                }  
+                addRouteStations();
+              }
+              
+              function addRouteStations(){
+              //credit: hex494D49
+                var f = (function(){
+                    var routeStns = [];
+                    for(i = 0; i < routeInfo.length; i++){
+                        (function(i){
+                            routeStns[i] = new XMLHttpRequest();
+                            var url = "http://api.bart.gov/api/route.aspx?cmd=routeinfo&route="+routeInfo[i]["number"]+"&key=QL4I-5T5E-86MT-DWE9";
+                            routeStns[i].open('GET',url,true);
+                            routeStns[i].onreadystatechange = function(){
+                                if(routeStns[i].readyState == 4 && routeStns[i].status == 200){
+                                    routeInfo[i]["stations"] = addStnsToRoute(routeStns[i]);
+                          
+                                }   
+                            };
+                            routeStns[i].send();
+                        })(i);
+                    }
+                })();
+              }
+              
+              function addStnsToRoute(xhttp){
+                    var xmlDoc = xhttp.responseXML;
+                    var stns = xmlDoc.getElementsByTagName("station");
+                    var stnAbbr = []
+                    for(i = 0; i < stns.length; i++){
+                        stnAbbr.push(stns[i].textContent);
+                    }
+                    return stnAbbr;
+              }
+              
+              function getStationInfo(abbr, name){
+                if(abbr != undefined && abbr != "none"){
+                    for(i = 0; i < stationInfo.length; i++){
+                        if(stationInfo[i]["abbr"] == abbr){
+                            return stationInfo[i];
+                        }
+                    }
+                }
+                if(name != undefined && name != "none"){
+                    for(j = 0; j < stationInfo.length; j++){
+                        if(stationInfo[j]["name"] == name){
+                            return stationInfo[j];
+                        }
+                    }
+                }
+              }
+              
+              function getRouteInfo(abbr){
+                for(i = 0; i < routeInfo.length; i++){
+                    if(routeInfo[i]["abbr"] == abbr){
+                        return routeInfo[i];
+                    }
+                }
+              }
+              
+              /*Handler for checkbox to show all routes*/
+              function showRoutes(checkbox){
+                  if(checkbox.checked == true){
+                    loadDoc("http://api.bart.gov/api/route.aspx?cmd=routes&key=QL4I-5T5E-86MT-DWE9",drawRoutes);
+                  }else{
+                    removeAllRoutes();
+                  }
+              }
+              
+              /*Draws all the routes on the map*/
+              function drawRoutes(xhttp){
+              if(routeLines == undefined || routeLines.length == 0){
+                routeLines = new Array();
+                var xmlDoc = xhttp.responseXML;
+                for(i = 0; i < routeInfo.length; i++){
+                    var route = routeInfo[i];
+                    var rNum = route["number"];
+                    var url = "http://api.bart.gov/api/route.aspx?cmd=routeinfo&route="+rNum+"&key=QL4I-5T5E-86MT-DWE9";
+                    loadDoc(url,drawSingleRoute);
+                }
+                }else{
+                    showAllRoutes();
+                }
+              }
+              
+              /*Draws one route on the map from an ajax request*/
+              function drawSingleRoute(xhttp){
+                    var xmlDoc = xhttp.responseXML;
+                    var config = xmlDoc.getElementsByTagName("station");
+                
+                    //root/routes/route/color
+                    var color = xmlDoc.childNodes[0].childNodes[2].childNodes[0].childNodes[7].textContent;
+                
+                    //build the coordinates for the polyLine
+                    var coords = [];
+                    for(i = 0; i < config.length; i++){
+                        var stn;
+                        for(j = 0; j < stationInfo.length; j++){
+                            if(stationInfo[j]["abbr"] == config[i].textContent){
+                                stn = stationInfo[j];
+                            }
+                        }
+                        var latLng = new google.maps.LatLng(stn["lat"],stn["long"]);
+                        coords.push(latLng);
+                    }  
+                
+                    //create the polyLine and add to the map
+                    var routePath = new google.maps.Polyline({
+                        path: coords,
+                        geodesic: true,
+                        strokeColor: color,
+                        strokeOpacity: 1.0,
+                        strokeWeight: 2 
+                        });
+                    
+                    routePath.setMap(map);
+                    var path = {color: color, route: routePath};
+                    routeLines.push(path);
+              }
+              
+              /*shows the route and stations of a single route*/
+              function showRouteColor(checkbox,color){
+                if(checkbox.checked == true){
+                    drawRouteColor(color,map);
+                    drawStationColor(color,map);
+                }else{
+                    drawRouteColor(color,null);
+                    drawStationColor(color,null);
+                }
+              }
+             
+              /*draws the stations on a single route*/
+              function drawStationColor(color,map){
+                for(i = 0; i < routeInfo.length; i++){
+                    //if this is the right color get the stations info of all this
+                    //route's stations
+                    if(routeInfo[i]["color"] == color){
+                        var route = routeInfo[i];
+                        var stns = route["stations"];
+                        for(j = 0; j < stns.length; j++){
+                            var stn = getStationInfo(stns[j]);
+                            var mark = getMarker(stn["name"]);
+                            mark.marker.setMap(map);
+                        }
+                    }
+                }
+              }
+              
+              function drawRouteColor(color,m){
+                for(i = 0; i < routeInfo.length; i++){
+                    if(routeLines[i].color == color){
+                        routeLines[i].route.setMap(m);
+                        return;
+                    }
+                }
+              }
+              
+              function showAllRoutes(){
+                for(i = 0; i < routeLines.length; i++){
+                    routeLines[i].route.setMap(map);
+                }
+              }
+              
+              function removeAllRoutes(){
+                for(i = 0; i < routeLines.length; i++){
+                    routeLines[i].route.setMap(null);
+                }
+              }
+              
+              function addStationWindow(stnName, marker){
+                //set up the url
+                var info = getStationInfo("none",stnName);
+                var abbr = info["abbr"];
+                var url = "http://api.bart.gov/api/etd.aspx?cmd=etd&orig="+abbr+"&key=QL4I-5T5E-86MT-DWE9"
+                //request information from the url
+                var xhttp = new XMLHttpRequest();
+                xhttp.onreadystatechange = function(){
+                    if(xhttp.readyState == 4 && xhttp.status == 200){
+                        drawWindow(marker,xhttp);
+                    }
+                };
+                xhttp.open('GET',url,true);
+                xhttp.send();
+              }
+              
+              /*Draws the departure information on the map*/
+              function drawWindow(marker,xhttp){
+                var xmlDoc = xhttp.responseXML;
+                
+                //holds the etds of this station
+                var doc = xmlDoc.childNodes[0];
+                var station = doc.childNodes[5];
+                var x = station.getElementsByTagName("etd"); //array of etds
+                var content = "<b>"+station.childNodes[0].textContent+"</b><br>";
+                
+                //add the departure information to the message box
+                for(i = 0; i < x.length; i++){
+                    var etd = x[i];
+                    var estimate = etd.childNodes[3];
+                    var minutes = estimate.childNodes[0].textContent;
+                    content += etd.childNodes[0].textContent + ": " + minutes;
+                    if(minutes != "Leaving") content += " minutes";
+                    content += "<br>";
+                }
+                
+                //create the info window for the map and add to the map
+                var infoWindow = new google.maps.InfoWindow({
+                    content: content
+                });
+                infoWindow.open(map,marker);
+              }
+              
+              //taken from google map docs
+              function showMarkers(markers){
+                //setMapOnAll(markers,map);
+                for(i = 0; i < stationMarkers.length; i++){
+                    stationMarkers[i].marker.setMap(map);
+                }
+              }
+              
+              function removeMarkers(markers){
+                  //setMapOnAll(markers, null);
+                  for(i = 0; i < stationMarkers.length; i++){
+                    stationMarkers[i].marker.setMap(null);
+                  }
+              }
+              
+              function setMapOnAll(markers,map){
+                  for(i = 0; i < markers.length; i++){
+                        markers[i].setMap(map);
+                  }
+              }
+              
+              /*Loads an ajax request and returns the http object*/
+              function loadDoc(url, func){
+                  var xhttp = new XMLHttpRequest();
+                  xhttp.onreadystatechange = function(){
+                      if(xhttp.readyState == 4 && xhttp.status == 200){
+                          func(xhttp);
+                      }
+                  };
+                  xhttp.open('GET',url,true);
+                  xhttp.send();
+              } 
+              
+              function getMarker(name){
+                for(var i = 0; i < stationMarkers.length; i++){
+                    if(stationMarkers[i].title == name){
+                        return stationMarkers[i];
+                    }
+                }
+              }    
+            </script>
+    </body>
+</html>
